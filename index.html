@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>家庭相册</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#1d1d1f;--muted:#86868b;--accent:#ff5a5f;--line:#e6e6ea}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif}
+#gate{position:fixed;inset:0;background:linear-gradient(135deg,#ff7e5f,#ff5a5f);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+#gate .box{background:#fff;border-radius:18px;padding:34px 28px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+#gate h1{font-size:20px;margin:0 0 6px}
+#gate p{color:var(--muted);font-size:13px;margin:0 0 20px}
+#gate input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;font-size:16px;outline:none;margin-bottom:14px}
+#gate button{width:100%;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+#gate .err{color:#e02020;font-size:13px;min-height:18px;margin-top:10px}
+#app{display:none;max-width:1100px;margin:0 auto;padding:0 12px 40px}
+header{padding:22px 6px 10px}
+header h1{font-size:22px;margin:0}
+header .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:12px 6px 6px;position:sticky;top:0;background:var(--bg);z-index:10}
+.tabs button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:9px 15px;border-radius:999px;font-size:14px;white-space:nowrap;cursor:pointer}
+.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:8px 0}
+.cell{position:relative;aspect-ratio:1/1;overflow:hidden;border-radius:12px;background:#e9e9ee;cursor:pointer}
+.cell img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}
+.cell:hover img{transform:scale(1.05)}
+.cell .badge{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 8px;border-radius:8px;display:flex;align-items:center;gap:4px}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:60;flex-direction:column}
+#lb.show{display:flex}
+#lb img,#lb video{max-width:94vw;max-height:80vh;border-radius:8px;background:#000}
+#lb .cap{color:#fff;font-size:14px;margin-top:12px;opacity:.85}
+#lb .cnt{color:#fff;font-size:13px;opacity:.7;margin-top:4px}
+#lb .nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);color:#fff;border:0;width:48px;height:64px;font-size:26px;cursor:pointer;border-radius:10px}
+#lb .prev{left:10px}#lb .next{right:10px}
+#lb .close{position:absolute;top:16px;right:18px;background:rgba(255,255,255,.15);color:#fff;border:0;width:42px;height:42px;border-radius:50%;font-size:22px;cursor:pointer}
+#lb .dl{position:absolute;top:18px;left:18px;background:rgba(255,255,255,.15);color:#fff;border:0;padding:9px 14px;border-radius:999px;font-size:13px;cursor:pointer}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:24px 12px}
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="box">
+    <h1>🔒 家庭相册</h1>
+    <p>请输入访问密码</p>
+    <input id="pw" type="password" placeholder="密码" autocomplete="off">
+    <button id="go">进入相册</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<div id="app">
+  <header><h1>家庭相册</h1><div class="sub">点击照片可放大查看 · 左右切换</div></header>
+  <div class="tabs" id="tabs"></div>
+  <div class="grid" id="grid"></div>
+  <footer>本相册受密码保护 · 仅限亲友访问</footer>
+</div>
+<div id="lb">
+  <button class="close" id="lbClose">×</button>
+  <button class="dl" id="lbDl">下载</button>
+  <button class="nav prev" id="lbPrev">‹</button>
+  <img id="lbImg" style="display:none">
+  <video id="lbVid" style="display:none" controls playsinline></video>
+  <div class="cap" id="lbCap"></div>
+  <div class="cnt" id="lbCnt"></div>
+  <button class="nav next" id="lbNext">›</button>
+</div>
+<script>
+var MANIFEST = {"albums": [{"id": "al01", "title": "8月2日", "items": [{"type": "image", "name": "IMG_6121", "thumb": "img/al01_001_t.jpg", "full": "img/al01_001_f.jpg", "w": 960, "h": 1280}, {"type": "image", "name": "IMG_6119", "thumb": "img/al01_002_t.jpg", "full": "img/al01_002_f.jpg", "w": 720, "h": 1280}, {"type": "image", "name": "IMG_6055", "thumb": "img/al01_003_t.jpg", "full": "img/al01_003_f.jpg", "w": 960, "h": 1280}, {"type": "image", "name": "IMG_6054", "thumb": "img/al01_004_t.jpg", "full": "img/al01_004_f.jpg", "w": 1275, "h": 1280}, {"type": "image", "name": "IMG_6053", "thumb": "img/al01_005_t.jpg", "full": "img/al01_005_f.jpg", "w": 826, "h": 1280}, {"type": "image", "name": "IMG_6052", "thumb": "img/al01_006_t.jpg", "full": "img/al01_006_f.jpg", "w": 1045, "h": 1280}, {"type": "image", "name": "IMG_6051", "thumb": "img/al01_007_t.jpg", "full": "img/al01_007_f.jpg", "w": 1280, "h": 1280}, {"type": "image", "name": "IMG_6050", "thumb": "img/al01_008_t.jpg", "full": "img/al01_008_f.jpg", "w": 1170, "h": 1250}, {"type": "image", "name": "IMG_6048", "thumb": "img/al01_009_t.jpg", "full": "img/al01_009_f.jpg", "w": 620, "h": 1280}, {"type": "image", "name": "IMG_6047", "thumb": "img/al01_010_t.jpg", "full": "img/al01_010_f.jpg", "w": 1280, "h": 1278}, {"type": "image", "name": "IMG_6042", "thumb": "img/al01_011_t.jpg", "full": "img/al01_011_f.jpg", "w": 1030, "h": 1280}, {"type": "image", "name": "IMG_6041", "thumb": "img/al01_012_t.jpg", "full": "img/al01_012_f.jpg", "w": 953, "h": 1280}, {"type": "image", "name": "IMG_6040", "thumb": "img/al01_013_t.jpg", "full": "img/al01_013_f.jpg", "w": 1223, "h": 1280}, {"type": "image", "name": "IMG_6039", "thumb": "img/al01_014_t.jpg", "full": "img/al01_014_f.jpg", "w": 1280, "h": 1280}, {"type": "image", "name": "IMG_6038", "thumb": "img/al01_015_t.jpg", "full": "img/al01_015_f.jpg", "w": 721, "h": 1244}, {"type": "image", "name": "IMG_6037", "thumb": "img/al01_016_t.jpg", "full": "img/al01_016_f.jpg", "w": 1202, "h": 1280}, {"type": "image", "name": "IMG_6025", "thumb": "img/al01_017_t.jpg", "full": "img/al01_017_f.jpg", "w": 1280, "h": 1280}, {"type": "image", "name": "IMG_5986", "thumb": "img/al01_018_t.jpg", "full": "img/al01_018_f.jpg", "w": 959, "h": 1280}, {"type": "image", "name": "IMG_5985", "thumb": "img/al01_019_t.jpg", "full": "img/al01_019_f.jpg", "w": 853, "h": 1280}, {"type": "image", "name": "IMG_5963", "thumb": "img/al01_020_t.jpg", "full": "img/al01_020_f.jpg", "w": 1260, "h": 846}, {"type": "image", "name": "IMG_5946", "thumb": "img/al01_021_t.jpg", "full": "img/al01_021_f.jpg", "w": 663, "h": 495}, {"type": "image", "name": "IMG_5931", "thumb": "img/al01_022_t.jpg", "full": "img/al01_022_f.jpg", "w": 952, "h": 1280}, {"type": "image", "name": "IMG_5912", "thumb": "img/al01_023_t.jpg", "full": "img/al01_023_f.jpg", "w": 797, "h": 1280}, {"type": "image", "name": "IMG_5792", "thumb": "img/al01_024_t.jpg", "full": "img/al01_024_f.jpg", "w": 1024, "h": 1024}, {"type": "image", "name": "IMG_5770", "thumb": "img/al01_025_t.jpg", "full": "img/al01_025_f.jpg", "w": 1208, "h": 1280}, {"type": "image", "name": "IMG_5769", "thumb": "img/al01_026_t.jpg", "full": "img/al01_026_f.jpg", "w": 686, "h": 1280}, {"type": "image", "name": "IMG_5767", "thumb": "img/al01_027_t.jpg", "full": "img/al01_027_f.jpg", "w": 1242, "h": 1242}, {"type": "image", "name": "IMG_5022", "thumb": "img/al01_028_t.jpg", "full": "img/al01_028_f.jpg", "w": 727, "h": 1280}, {"type": "image", "name": "IMG_5027", "thumb": "img/al01_029_t.jpg", "full": "img/al01_029_f.jpg", "w": 1280, "h": 1274}, {"type": "image", "name": "IMG_5030", "thumb": "img/al01_030_t.jpg", "full": "img/al01_030_f.jpg", "w": 500, "h": 500}, {"type": "image", "name": "IMG_5032", "thumb": "img/al01_031_t.jpg", "full": "img/al01_031_f.jpg", "w": 1260, "h": 1280}, {"type": "image", "name": "IMG_5033", "thumb": "img/al01_032_t.jpg", "full": "img/al01_032_f.jpg", "w": 960, "h": 1280}, {"type": "image", "name": "IMG_5034", "thumb": "img/al01_033_t.jpg", "full": "img/al01_033_f.jpg", "w": 955, "h": 1280}, {"type": "image", "name": "IMG_5038", "thumb": "img/al01_034_t.jpg", "full": "img/al01_034_f.jpg", "w": 1280, "h": 1172}, {"type": "image", "name": "IMG_5009", "thumb": "img/al01_035_t.jpg", "full": "img/al01_035_f.jpg", "w": 1280, "h": 782}, {"type": "image", "name": "IMG_5010", "thumb": "img/al01_036_t.jpg", "full": "img/al01_036_f.jpg", "w": 962, "h": 1280}, {"type": "image", "name": "IMG_5011", "thumb": "img/al01_037_t.jpg", "full": "img/al01_037_f.jpg", "w": 868, "h": 1280}, {"type": "image", "name": "IMG_5014", "thumb": "img/al01_038_t.jpg", "full": "img/al01_038_f.jpg", "w": 721, "h": 1280}, {"type": "image", "name": "IMG_5015", "thumb": "img/al01_039_t.jpg", "full": "img/al01_039_f.jpg", "w": 1024, "h": 1024}, {"type": "image", "name": "IMG_5016", "thumb": "img/al01_040_t.jpg", "full": "img/al01_040_f.jpg", "w": 1280, "h": 888}, {"type": "image", "name": "IMG_5018", "thumb": "img/al01_041_t.jpg", "full": "img/al01_041_f.jpg", "w": 1003, "h": 1106}, {"type": "image", "name": "重庆主城点位图", "thumb": "img/al01_042_t.jpg", "full": "img/al01_042_f.jpg", "w": 1912, "h": 1844}]}], "passwordHash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"};
+var albums = MANIFEST.albums;
+var curAlbum = 0, curIdx = 0;
+
+async function sha256Hex(str){
+  if(window.crypto && window.crypto.subtle){
+    var buf=await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+  }
+  throw new Error('no-subtle');
+}
+
+
+async function tryUnlock(){
+  var v=document.getElementById('pw').value;
+  try{
+    var h=await sha256Hex(v);
+    if(h===MANIFEST.passwordHash){document.getElementById('gate').style.display='none';document.getElementById('app').style.display='block';buildTabs();render();}
+    else{document.getElementById('err').textContent='密码错误，请重试';}
+  }catch(e){document.getElementById('err').textContent='当前环境不支持密码校验，请通过浏览器打开链接';}
+}
+document.getElementById('go').onclick=tryUnlock;
+document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock();});
+
+function buildTabs(){
+  var t=document.getElementById('tabs');t.innerHTML='';
+  albums.forEach(function(a,i){var b=document.createElement('button');b.textContent=a.title+' ('+a.items.length+')';if(i===0)b.className='active';b.onclick=function(){curAlbum=i;render();[].forEach.call(t.children,function(x){x.className=''});b.className='active';};t.appendChild(b);});
+}
+function render(){
+  var grid=document.getElementById('grid');grid.innerHTML='';
+  var items=albums[curAlbum].items;
+  items.forEach(function(it,i){
+    var cell=document.createElement('div');cell.className='cell';
+    var im=document.createElement('img');im.loading='lazy';im.src=it.thumb;im.alt=it.name;cell.appendChild(im);
+    if(it.type==='video'){var bd=document.createElement('div');bd.className='badge';bd.textContent='▶ 视频';cell.appendChild(bd);}
+    cell.onclick=function(){openLb(i);};
+    grid.appendChild(cell);
+  });
+}
+var lbImg=document.getElementById('lbImg'),lbVid=document.getElementById('lbVid');
+function openLb(i){
+  curIdx=i;var it=albums[curAlbum].items[i];
+  document.getElementById('lb').className='show';
+  if(it.type==='video'){lbImg.style.display='none';lbVid.style.display='block';lbVid.poster=it.poster;lbVid.src=it.src;lbVid.play();}
+  else{lbVid.style.display='none';lbVid.pause();lbImg.style.display='block';lbImg.src=it.full;}
+  document.getElementById('lbCap').textContent=it.name;
+  document.getElementById('lbCnt').textContent=(i+1)+' / '+albums[curAlbum].items.length;
+  document.getElementById('lbDl').onclick=function(){var a=document.createElement('a');a.href=(it.type==='video'?it.src:it.full);a.download='';a.click();};
+}
+function closeLb(){document.getElementById('lb').className='';lbVid.pause();}
+function step(d){var n=albums[curAlbum].items.length;openLb((curIdx+d+n)%n);}
+document.getElementById('lbClose').onclick=closeLb;
+document.getElementById('lbPrev').onclick=function(){step(-1)};
+document.getElementById('lbNext').onclick=function(){step(1)};
+document.getElementById('lb').addEventListener('click',function(e){if(e.target===this)closeLb();});
+document.addEventListener('keydown',function(e){
+  if(document.getElementById('lb').className!=='show')return;
+  if(e.key==='Escape')closeLb();else if(e.key==='ArrowLeft')step(-1);else if(e.key==='ArrowRight')step(1);
+});
+</script>
+</body>
+</html>
